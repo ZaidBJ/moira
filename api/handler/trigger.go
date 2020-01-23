@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
+	"github.com/moira-alert/moira"
 	"github.com/moira-alert/moira/metric_source/local"
 	"github.com/moira-alert/moira/metric_source/remote"
 
@@ -20,7 +21,8 @@ import (
 func trigger(router chi.Router) {
 	router.Use(middleware.TriggerContext)
 	router.Put("/", updateTrigger)
-	router.Get("/", getTrigger)
+	router.With(middleware.TriggerContext, middleware.Template(false)).Get("/", getTrigger)
+	// router.Get("/", getTrigger)
 	router.Delete("/", removeTrigger)
 	router.Get("/state", getTriggerState)
 	router.Route("/throttling", func(router chi.Router) {
@@ -79,11 +81,34 @@ func getTrigger(writer http.ResponseWriter, request *http.Request) {
 	if triggerID == "testlog" {
 		panic("Test for multi line logs")
 	}
+
 	trigger, err := controller.GetTrigger(database, triggerID)
 	if err != nil {
 		render.Render(writer, request, err)
 		return
 	}
+
+	if templated := middleware.GetTemplated(request); templated && trigger.Desc != nil {
+		triggerData := moira.TriggerData{
+			ID:   trigger.ID,
+			Name: trigger.Name,
+			Desc: *trigger.Desc,
+		}
+
+		eventsList, err := controller.GetTriggerEvents(database, triggerID, 0, 3)
+		if err != nil {
+			render.Render(writer, request, err)
+		}
+
+		fmt.Printf("%#v\n", eventsList.List)
+
+		if err := triggerData.PopulateDescription(eventsList.List); err != nil {
+			render.Render(writer, request, api.ErrorRender(err))
+		}
+
+		*trigger.Desc = triggerData.Desc
+	}
+
 	if err := render.Render(writer, request, trigger); err != nil {
 		render.Render(writer, request, api.ErrorRender(err))
 	}

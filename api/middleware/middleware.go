@@ -19,6 +19,7 @@ var (
 	databaseKey          ContextKey = "database"
 	searcherKey          ContextKey = "searcher"
 	triggerIDKey         ContextKey = "triggerID"
+	templatedKey         ContextKey = "templated"
 	contactIDKey         ContextKey = "contactID"
 	tagKey               ContextKey = "tag"
 	subscriptionIDKey    ContextKey = "subscriptionID"
@@ -44,6 +45,16 @@ func GetLogin(request *http.Request) string {
 // GetTriggerID gets TriggerID string from request context, which was sets in TriggerContext middleware
 func GetTriggerID(request *http.Request) string {
 	return request.Context().Value(triggerIDKey).(string)
+}
+
+// GetTriggerID gets TriggerID string from request context, which was sets in TriggerContext middleware
+func GetTemplated(request *http.Request) bool {
+	// value, ok := request.URL.Query()["templated"]
+	// if ok {
+	// 	return fmt.Sprint(value) == "[true]"
+	// }
+	// return false
+	return request.Context().Value(templatedKey).(bool)
 }
 
 // GetTag gets tag string from request context, which was sets in TagContext middleware

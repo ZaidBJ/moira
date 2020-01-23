@@ -124,6 +124,21 @@ func Paginate(defaultPage, defaultSize int64) func(next http.Handler) http.Handl
 	}
 }
 
+// Template gets bool value template from URI query and set it to request context. If query has not values sets given values
+func Template(defaultTemplate bool) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			template, err := strconv.ParseBool(request.URL.Query().Get("templated"))
+			if err != nil {
+				template = defaultTemplate
+			}
+
+			ctxTemplate := context.WithValue(request.Context(), templatedKey, template)
+			next.ServeHTTP(writer, request.WithContext(ctxTemplate))
+		})
+	}
+}
+
 // DateRange gets from and to values from URI query and set it to request context. If query has not values sets given values
 func DateRange(defaultFrom, defaultTo string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

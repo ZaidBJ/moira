@@ -244,6 +244,61 @@ func TestTriggerData_GetTags(t *testing.T) {
 	})
 }
 
+func TestTriggerData_TemplateDescription(t *testing.T) {
+
+	Convey("Test templates", t, func() {
+		var trigger = TriggerData{Name: "TestName"}
+		trigger.Desc = "\n" +
+			"Trigger name: {{.Trigger.Name}}\n" +
+			"{{range $v := .Events }}\n" +
+			"Metric: {{$v.Metric}}\n" +
+			"MetricElements: {{$v.MetricElements}}\n" +
+			"Timestamp: {{$v.Timestamp}}\n" +
+			"Value: {{$v.Value}}\n" +
+			"State: {{$v.State}}\n" +
+			"{{end}}\n" +
+			"https://grafana.yourhost.com/some-dashboard{{ range $i, $v := .Events }}{{ if ne $i 0 }}&{{ else }}?{{ end }}var-host={{ $v.Metric }}{{ end }}\n"
+
+		var data = NotificationEvents{{Metric: "1"}, {Metric: "2"}}
+
+		Convey("Test nil data", func() {
+			trigger.PopulateDescription(nil)
+			So(trigger.Desc, ShouldResemble, `
+Trigger name: TestName
+
+https://grafana.yourhost.com/some-dashboard
+`)
+		})
+
+		Convey("Test data", func() {
+			trigger.PopulateDescription(data)
+			So(trigger.Desc, ShouldResemble, "\n"+
+				"Trigger name: TestName\n"+
+				"\n"+
+				"Metric: 1\n"+
+				"MetricElements: [1]\n"+
+				"Timestamp: 0\n"+
+				"Value: <nil>\n"+
+				"State: \n"+
+				"\n"+
+				"Metric: 2\n"+
+				"MetricElements: [2]\n"+
+				"Timestamp: 0\n"+
+				"Value: <nil>\n"+
+				"State: \n"+
+				"\n"+
+				"https://grafana.yourhost.com/some-dashboard?var-host=1&var-host=2\n")
+		})
+
+		Convey("Test description without templates", func() {
+			anotherText := "Another text"
+			trigger.Desc = anotherText
+			trigger.PopulateDescription(data)
+			So(trigger.Desc, ShouldEqual, anotherText)
+		})
+	})
+}
+
 func TestScheduledNotification_GetKey(t *testing.T) {
 	Convey("Get key", t, func() {
 		notification := ScheduledNotification{

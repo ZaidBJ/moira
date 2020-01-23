@@ -6,6 +6,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -103,6 +104,18 @@ func (event *NotificationEvent) CreateMessage(location *time.Location) string {
 // NotificationEvents represents slice of NotificationEvent
 type NotificationEvents []NotificationEvent
 
+type eventTemplateData struct {
+	Metric         string
+	MetricElements []string
+	Timestamp      int64
+	Value          *float64
+	State          State
+}
+
+type triggerTemplateData struct {
+	Name string `json:"name"`
+}
+
 // TriggerData represents trigger object
 type TriggerData struct {
 	ID         string   `json:"id"`
@@ -113,6 +126,40 @@ type TriggerData struct {
 	ErrorValue float64  `json:"error_value"`
 	IsRemote   bool     `json:"is_remote"`
 	Tags       []string `json:"__notifier_trigger_tags"`
+}
+
+func (trigger *TriggerData) PopulateDescription(events NotificationEvents) error {
+	buffer := new(bytes.Buffer)
+	templateEvents := make([]eventTemplateData, 0, len(events))
+
+	for _, event := range events {
+		templateEvent := eventTemplateData{
+			Metric:         event.Metric,
+			MetricElements: strings.Split(event.Metric, "."),
+			Timestamp:      event.Timestamp,
+			State:          event.State,
+		}
+
+		if event.Value != nil {
+			templateEvent.Value = event.Value
+		}
+
+		templateEvents = append(templateEvents, templateEvent)
+	}
+
+	data := map[string]interface{}{
+		"Trigger": triggerTemplateData{Name: trigger.Name},
+		"Events":  templateEvents,
+	}
+
+	triggerTemplate := template.Must(template.New("populate-description").Parse(trigger.Desc))
+	if err := triggerTemplate.Execute(buffer, data); err != nil {
+		return err
+	}
+
+	trigger.Desc = buffer.String()
+
+	return nil
 }
 
 // GetTriggerURI gets frontUri and returns triggerUrl, returns empty string on selfcheck and test notifications

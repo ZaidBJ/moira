@@ -12,6 +12,7 @@ func GetTriggerEvents(database moira.Database, triggerID string, page int64, siz
 	if err != nil {
 		return nil, api.ErrorInternalServer(err)
 	}
+
 	eventCount := database.GetNotificationEventCount(triggerID, -1)
 
 	eventsList := &dto.EventsList{
